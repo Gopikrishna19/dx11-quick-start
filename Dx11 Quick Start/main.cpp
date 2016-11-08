@@ -49,6 +49,9 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 		if (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE)) { // PM_REMOVE will pop message from quere while PM_REMOVE don't
 			TranslateMessage(&msg);      // translate keystroke messages into the right format
 			DispatchMessage(&msg);       // send the message to the WindowProc function
+
+			if (msg.message == WM_QUIT)
+				break;
 		} else {
 			// run dx code
 		}
