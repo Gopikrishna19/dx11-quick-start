@@ -44,9 +44,14 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 
 	MSG msg;
 
-	while (GetMessage(&msg, NULL, 0, 0)) {
-		TranslateMessage(&msg);          // translate keystroke messages into the right format
-		DispatchMessage(&msg);           // send the message to the WindowProc function
+	while (TRUE) {
+
+		if (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE)) { // PM_REMOVE will pop message from quere while PM_REMOVE don't
+			TranslateMessage(&msg);      // translate keystroke messages into the right format
+			DispatchMessage(&msg);       // send the message to the WindowProc function
+		} else {
+			// run dx code
+		}
 	}
 
 	return msg.wParam;                   // return this part of the WM_QUIT message to Windows
