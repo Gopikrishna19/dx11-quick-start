@@ -7,8 +7,8 @@ LRESULT CALLBACK WindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPara
 
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nShowCmd) {
 
-	HWND hWnd; // window handle
-	WNDCLASSEX wc; // struct to hold window information
+	HWND hWnd;                           // window handle
+	WNDCLASSEX wc;                       // struct to hold window information
 
 	ZeroMemory(&wc, sizeof(WNDCLASSEX)); // clear out the window for use
 
@@ -22,6 +22,9 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 
 	RegisterClassEx(&wc);                // register window
 
+	RECT wr = {0, 0, 800, 600};          // set the size, but not the position
+	AdjustWindowRect(&wr, WS_OVERLAPPEDWINDOW, FALSE); // adjust the size
+
 	hWnd = CreateWindowEx(               // Create window handle from the registered window
 		NULL,
 		L"MainWindow",                   // name of the window class
@@ -29,31 +32,31 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 		WS_OVERLAPPEDWINDOW,             // window style
 		300,                             // x-position of the window
 		300,                             // y-position of the window
-		800,                             // width of the window
-		600,                             // height of the window
+		wr.right - wr.left,              // width of the window
+		wr.bottom - wr.left,             // height of the window
 		NULL,                            // we have no parent window, NULL
 		NULL,                            // we aren't using menus, NULL
 		hInstance,                       // application handle
-		NULL
-	);                           // used with multiple windows, NULL
+		NULL							 // used with multiple windows, NULL
+	);                           
 
 	ShowWindow(hWnd, nShowCmd);
 
 	MSG msg;
 
 	while (GetMessage(&msg, NULL, 0, 0)) {
-		TranslateMessage(&msg); // translate keystroke messages into the right format
-		DispatchMessage(&msg);  // send the message to the WindowProc function
+		TranslateMessage(&msg);          // translate keystroke messages into the right format
+		DispatchMessage(&msg);           // send the message to the WindowProc function
 	}
 
-	return msg.wParam; // return this part of the WM_QUIT message to Windows
+	return msg.wParam;                   // return this part of the WM_QUIT message to Windows
 }
 
 
 LRESULT CALLBACK WindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
 	switch (message) {
-		case WM_DESTROY: // this message is read when the window is closed
-			PostQuitMessage(0); // close the application entirely
+		case WM_DESTROY:                 // this message is read when the window is closed
+			PostQuitMessage(0);          // close the application entirely
 			return 0;
 	}
 
