@@ -8,6 +8,9 @@
 #pragma comment (lib, "d3dx11.lib")
 #pragma comment (lib, "d3dx10.lib")
 
+#define SCREEN_WIDTH  2560
+#define SCREEN_HEIGHT 1440
+
 IDXGISwapChain *swapchain;
 ID3D11Device *dev;
 ID3D11DeviceContext *devcon;
@@ -15,6 +18,8 @@ ID3D11RenderTargetView *backbuffer;
 
 void InitD3D(HWND hWnd);															// Prepare D3D for use
 void CleanD3D(void);																// Clear D3D once done
+void RenderFrame(void);																// Render a single frame
+
 LRESULT CALLBACK WindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam); // WinProc for handling any event messages Windows sends to the program while running
 
 
@@ -30,12 +35,13 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 	wc.lpfnWndProc = WindowProc;
 	wc.hInstance = hInstance;
 	wc.hCursor = LoadCursor(NULL, IDC_ARROW);
-	wc.hbrBackground = (HBRUSH) COLOR_WINDOW;
 	wc.lpszClassName = L"MainWindow";
+	// set background to null in order to skip flashing a window before going full screen
+	// wc.hbrBackground = (HBRUSH) COLOR_WINDOW;
 
 	RegisterClassEx(&wc);                // register window
 
-	RECT wr = {0, 0, 800, 600};          // set the size, but not the position
+	RECT wr = {0, 0, SCREEN_WIDTH, SCREEN_HEIGHT};     // set the size, but not the position
 	AdjustWindowRect(&wr, WS_OVERLAPPEDWINDOW, FALSE); // adjust the size
 
 	hWnd = CreateWindowEx(               // Create window handle from the registered window
@@ -67,9 +73,9 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 
 			if (msg.message == WM_QUIT)
 				break;
-		} else {
-			// run dx code
 		}
+
+		RenderFrame();
 	}
 
 	CleanD3D();
@@ -91,15 +97,20 @@ LRESULT CALLBACK WindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPara
 void InitD3D(HWND hWnd) {
 	DXGI_SWAP_CHAIN_DESC scd;
 	ID3D11Texture2D *pBackBuffer;
+	D3D11_VIEWPORT viewport;
 
 	ZeroMemory(&scd, sizeof(DXGI_SWAP_CHAIN_DESC));
+	ZeroMemory(&viewport, sizeof(D3D11_VIEWPORT));
 
 	scd.BufferCount = 1;									 // Number of back buffers
 	scd.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;		 // use 32bit rgba
+	scd.BufferDesc.Width = SCREEN_WIDTH;					 // set buffer width
+	scd.BufferDesc.Height = SCREEN_HEIGHT;					 // set buffer height
 	scd.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;		 // define how to use the buffer
 	scd.OutputWindow = hWnd;								 // the window to render unto
 	scd.SampleDesc.Count = 4;								 // multi sampling count
-	scd.Windowed = true;									 // windowed/not
+	scd.Windowed = FALSE;									 // windowed/not
+	scd.Flags = DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;      // allow fullscreen
 
 	D3D11CreateDeviceAndSwapChain(
 		NULL,
@@ -122,10 +133,26 @@ void InitD3D(HWND hWnd) {
 	pBackBuffer->Release();															   // close Texture COM since render target for/with the texture is created and this is no longer needed
 
 	devcon->OMSetRenderTargets(1, &backbuffer, NULL);								   // set Texture COM's output target to backbuffer so it can render to it 	  // set the COM object as the active render target
+
+	viewport.TopLeftX = 0;
+	viewport.TopLeftY = 0;
+	viewport.Width = SCREEN_WIDTH;
+	viewport.Height = SCREEN_HEIGHT;
+
+	devcon->RSSetViewports(1, &viewport);
+}
+
+void RenderFrame(void) {
+	devcon->ClearRenderTargetView(backbuffer, D3DXCOLOR(0.0f, 0.2f, 0.4f, 1.0f)); // flush the screen with deep blue color;
+
+	swapchain->Present(0, 0);													  // swap front and back buffers
 }
 
 void CleanD3D(void) {
+	swapchain->SetFullscreenState(FALSE, NULL);                                   // switch to windowed mode before closing
+
 	swapchain->Release();
+	backbuffer->Release();
 	dev->Release();
 	devcon->Release();
 }
