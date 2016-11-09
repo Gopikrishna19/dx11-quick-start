@@ -11,17 +11,27 @@
 #define SCREEN_WIDTH  2560
 #define SCREEN_HEIGHT 1440
 
-IDXGISwapChain *swapchain;
-ID3D11Device *dev;
-ID3D11DeviceContext *devcon;
-ID3D11RenderTargetView *backbuffer;
+IDXGISwapChain *swapchain;             // the pointer to the swap chain interface
+ID3D11Device *dev;                     // the pointer to our Direct3D device interface
+ID3D11DeviceContext *devcon;           // the pointer to our Direct3D device context
+ID3D11RenderTargetView *backbuffer;    // the pointer to our back buffer
+ID3D11InputLayout *pLayout;            // the pointer to the input layout
+ID3D11VertexShader *pVS;               // the pointer to the vertex shader
+ID3D11PixelShader *pPS;                // the pointer to the pixel shader
+ID3D11Buffer *pVBuffer;                // the pointer to the vertex buffer
 
 void InitD3D(HWND hWnd);															// Prepare D3D for use
 void CleanD3D(void);																// Clear D3D once done
 void RenderFrame(void);																// Render a single frame
+void InitGraphics();																// Initialize graphics to render
+void InitPipeline();																// Start pipeline to render
 
 LRESULT CALLBACK WindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam); // WinProc for handling any event messages Windows sends to the program while running
 
+struct VERTEX {
+	FLOAT X, Y, Z;      // position
+	D3DXCOLOR Color;    // color
+};
 
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nShowCmd) {
 
@@ -140,17 +150,75 @@ void InitD3D(HWND hWnd) {
 	viewport.Height = SCREEN_HEIGHT;
 
 	devcon->RSSetViewports(1, &viewport);
+
+	InitPipeline();
+	InitGraphics();
 }
 
 void RenderFrame(void) {
 	devcon->ClearRenderTargetView(backbuffer, D3DXCOLOR(0.0f, 0.2f, 0.4f, 1.0f)); // flush the screen with deep blue color;
 
+	UINT stride = sizeof(VERTEX);
+	UINT offset = 0;
+
+	devcon->IASetVertexBuffers(0, 1, &pVBuffer, &stride, &offset);                // select the vertex buffer to render
+	devcon->IASetPrimitiveTopology(D3D10_PRIMITIVE_TOPOLOGY_TRIANGLELIST);		  // select the render strategy
+	devcon->Draw(3, 0);															  // render	to backbuffer; draw 3 vertices starting from 0
+
 	swapchain->Present(0, 0);													  // swap front and back buffers
+}
+
+void InitPipeline() {
+	ID3D10Blob *VS, *PS;                                                          // load and compile the vertex and pixel shaders
+	D3D11_INPUT_ELEMENT_DESC ied[] = {                                            // create input layout object to tell the hardware how to read VERTEX struct
+		{"POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0},
+		{"COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0},
+	};
+	D3DX11CompileFromFile(L"shaders.shader", 0, 0, "VShader", "vs_4_0", 0, 0, 0, &VS, 0, 0);
+	D3DX11CompileFromFile(L"shaders.shader", 0, 0, "PShader", "ps_4_0", 0, 0, 0, &PS, 0, 0);
+
+	// encapsulate both shaders into shader objects
+	dev->CreateVertexShader(VS->GetBufferPointer(), VS->GetBufferSize(), NULL, &pVS);
+	dev->CreatePixelShader(PS->GetBufferPointer(), PS->GetBufferSize(), NULL, &pPS);
+
+	// set the shader objects
+	devcon->VSSetShader(pVS, 0, 0);
+	devcon->PSSetShader(pPS, 0, 0);
+
+	dev->CreateInputLayout(ied, 2, VS->GetBufferPointer(), VS->GetBufferSize(), &pLayout);
+	devcon->IASetInputLayout(pLayout);
+}
+
+void InitGraphics() {
+	// array of vertices for a triange
+	VERTEX TriangleVertices[] = {
+		{0.0f, 0.5f, 0.0f, D3DXCOLOR(1.0f, 0.0f, 0.0f, 1.0f)},
+		{0.45f, -0.5, 0.0f, D3DXCOLOR(0.0f, 1.0f, 0.0f, 1.0f)},
+		{-0.45f, -0.5f, 0.0f, D3DXCOLOR(0.0f, 0.0f, 1.0f, 1.0f)}
+	};
+	D3D11_BUFFER_DESC bd;
+	D3D11_MAPPED_SUBRESOURCE ms;
+
+	ZeroMemory(&bd, sizeof(bd));
+
+	bd.Usage = D3D11_USAGE_DYNAMIC;                // write only for CPU and read only for GPU
+	bd.ByteWidth = sizeof(VERTEX) * 3;             // size is the VERTEX struct * 3
+	bd.BindFlags = D3D11_BIND_VERTEX_BUFFER;       // use as a vertex buffer
+	bd.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;    // allow CPU to write into buffer
+
+	dev->CreateBuffer(&bd, NULL, &pVBuffer);                           // create the buffer
+	devcon->Map(pVBuffer, NULL, D3D11_MAP_WRITE_DISCARD, NULL, &ms);   // map the buffer
+	memcpy(ms.pData, TriangleVertices, sizeof(TriangleVertices));      // copy the data	to vertex buffer
+	devcon->Unmap(pVBuffer, NULL);                                     // unmap the buffer
 }
 
 void CleanD3D(void) {
 	swapchain->SetFullscreenState(FALSE, NULL);                                   // switch to windowed mode before closing
 
+	pLayout->Release();
+	pVS->Release();
+	pPS->Release();
+	pVBuffer->Release();
 	swapchain->Release();
 	backbuffer->Release();
 	dev->Release();
