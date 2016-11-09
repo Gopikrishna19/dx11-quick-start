@@ -20,6 +20,6 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <None Include="Shaders.shader" />
+    <None Include="shaders.shader" />
   </ItemGroup>
 </Project>
