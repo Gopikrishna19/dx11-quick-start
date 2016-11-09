@@ -11,6 +11,7 @@
 IDXGISwapChain *swapchain;
 ID3D11Device *dev;
 ID3D11DeviceContext *devcon;
+ID3D11RenderTargetView *backbuffer;
 
 void InitD3D(HWND hWnd);															// Prepare D3D for use
 void CleanD3D(void);																// Clear D3D once done
@@ -89,6 +90,7 @@ LRESULT CALLBACK WindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPara
 
 void InitD3D(HWND hWnd) {
 	DXGI_SWAP_CHAIN_DESC scd;
+	ID3D11Texture2D *pBackBuffer;
 
 	ZeroMemory(&scd, sizeof(DXGI_SWAP_CHAIN_DESC));
 
@@ -113,6 +115,13 @@ void InitD3D(HWND hWnd) {
 		NULL,
 		&devcon
 	);
+
+	swapchain->GetBuffer(0, __uuidof(ID3D11Texture2D), (LPVOID*) &pBackBuffer);		   // find the backbuffer#0 and create backbuffer pointer for 2D Texture COM  // determine address of backbuffer
+	dev->CreateRenderTargetView(pBackBuffer, NULL, &backbuffer);					   // create render target for Texture COM									  // create COM object to represent render target
+
+	pBackBuffer->Release();															   // close Texture COM since render target for/with the texture is created and this is no longer needed
+
+	devcon->OMSetRenderTargets(1, &backbuffer, NULL);								   // set Texture COM's output target to backbuffer so it can render to it 	  // set the COM object as the active render target
 }
 
 void CleanD3D(void) {
